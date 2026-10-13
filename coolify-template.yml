@@ -1,0 +1,162 @@
+# documentation: https://github.com/lopadova/AskMyDocs
+# slogan: Self-hosted AI Knowledge Hub (RAG) auf Laravel + PostgreSQL/pgvector
+# category: ai
+# tags: ai,rag,knowledge-base,chat,laravel,pgvector
+# logo: svgs/askmydocs.svg
+# port: 8080
+#
+# AskMyDocs — Coolify-Service-Template (fertiges Image, kein Build in Coolify)
+#
+# Verwendung: Coolify → Projekt → "+ New" → "Docker Compose Empty" → Inhalt
+# dieser Datei einfügen → Domain für "app" setzen → Deploy.
+#
+# Automatisch durch Coolify: Passwörter (Postgres, Redis), APP_KEY, URL/FQDN.
+# Selbst setzen: API-Key des KI-Providers und optional das erste Admin-Konto.
+#
+# Interne CA-Zertifikate: das CA-Bundle des Hosts wird per Bind-Mount in die
+# App-Container gelegt. Interne CAs auf dem Coolify-Host nach
+# /usr/local/share/ca-certificates legen und "sudo update-ca-certificates"
+# ausführen – danach erreicht die App interne Dienste mit eigenem Zertifikat.
+
+x-app-volumes: &app-volumes
+  - askmydocs-storage:/var/www/html/storage/app
+  - ${HOST_CA_BUNDLE:-/etc/ssl/certs/ca-certificates.crt}:/etc/ssl/certs/ca-certificates.crt:ro
+
+x-app-env: &app-env
+  APP_NAME: ${APP_NAME:-AskMyDocs}
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_KEY: base64:${SERVICE_REALBASE64_APPKEY}
+  APP_URL: ${SERVICE_URL_APP}
+  APP_TIMEZONE: ${APP_TIMEZONE:-Europe/Berlin}
+  APP_LOCALE: ${APP_LOCALE:-en}
+  LOG_CHANNEL: stderr
+  LOG_LEVEL: ${LOG_LEVEL:-info}
+
+  DB_CONNECTION: pgsql
+  DB_HOST: postgres
+  DB_PORT: "5432"
+  DB_DATABASE: askmydocs
+  DB_USERNAME: askmydocs
+  DB_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+
+  REDIS_CLIENT: phpredis
+  REDIS_HOST: redis
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ${SERVICE_PASSWORD_REDIS}
+  QUEUE_CONNECTION: redis
+  REDIS_QUEUE: default
+  REDIS_QUEUE_RETRY_AFTER: "4200"
+  CACHE_STORE: redis
+  SESSION_DRIVER: database
+  SESSION_SECURE_COOKIE: "true"
+
+  SANCTUM_STATEFUL_DOMAINS: ${SERVICE_FQDN_APP}
+  CORS_ALLOWED_ORIGINS: ${SERVICE_URL_APP}
+
+  # KI-Provider (openai | anthropic | gemini | openrouter | regolo).
+  # Anthropic hat keine Embeddings → zusätzlich OpenAI oder OpenRouter setzen.
+  AI_PROVIDER: ${AI_PROVIDER:-openrouter}
+  AI_EMBEDDINGS_PROVIDER: ${AI_EMBEDDINGS_PROVIDER:-openai}
+  OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+  GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+  REGOLO_API_KEY: ${REGOLO_API_KEY:-}
+
+  # Erstes Admin-Konto (wird nur angelegt, solange es fehlt)
+  INITIAL_COMPANY_NAME: ${INITIAL_COMPANY_NAME:-AskMyDocs}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
+  COMPANY_ADMIN_PASSWORD: ${COMPANY_ADMIN_PASSWORD:-}
+
+services:
+  app:
+    image: ${ASKMYDOCS_IMAGE:-ghcr.io/bierwirth-it/askmydocs:latest}
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      SERVICE_URL_APP_8080: ""
+      CONTAINER_ROLE: app
+      RUN_MIGRATIONS: "true"
+    volumes: *app-volumes
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8080/up >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  worker:
+    image: ${ASKMYDOCS_IMAGE:-ghcr.io/bierwirth-it/askmydocs:latest}
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      CONTAINER_ROLE: worker
+      WORKER_QUEUES: ${WORKER_QUEUES:-agent,default,kb-ingest,connectors}
+    volumes: *app-volumes
+    stop_grace_period: 120s
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan queue:work' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  scheduler:
+    image: ${ASKMYDOCS_IMAGE:-ghcr.io/bierwirth-it/askmydocs:latest}
+    restart: unless-stopped
+    environment:
+      <<: *app-env
+      CONTAINER_ROLE: scheduler
+    volumes: *app-volumes
+    depends_on:
+      app:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f 'artisan schedule:work' >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: askmydocs
+      POSTGRES_USER: askmydocs
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES}
+    volumes:
+      - askmydocs-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U askmydocs -d askmydocs"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${SERVICE_PASSWORD_REDIS}"]
+    environment:
+      REDISCLI_AUTH: ${SERVICE_PASSWORD_REDIS}
+    volumes:
+      - askmydocs-redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  askmydocs-storage:
+  askmydocs-postgres:
+  askmydocs-redis:
