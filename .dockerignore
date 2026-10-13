@@ -1,0 +1,3 @@
+# Nichts aus dem lokalen Ordner gehört ins Image (Dockerfile kopiert nur aus Build-Stages)
+*
+!Dockerfile
