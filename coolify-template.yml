@@ -11,7 +11,8 @@
 # dieser Datei einfügen → Domain für "app" setzen → Deploy.
 #
 # Automatisch durch Coolify: Passwörter (Postgres, Redis), APP_KEY, URL/FQDN.
-# Selbst setzen: API-Key des KI-Providers und optional das erste Admin-Konto.
+# Automatisch: Admin-Login admin@askmydocs.local, Passwort aus SERVICE_PASSWORD_ADMIN.
+# Selbst setzen: API-Key des KI-Providers (wird vom Provider ausgestellt).
 #
 # Interne CA-Zertifikate: das CA-Bundle des Hosts wird per Bind-Mount in die
 # App-Container gelegt. Interne CAs auf dem Coolify-Host nach
@@ -64,10 +65,11 @@ x-app-env: &app-env
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   REGOLO_API_KEY: ${REGOLO_API_KEY:-}
 
-  # Erstes Admin-Konto (wird nur angelegt, solange es fehlt)
+  # Erstes Admin-Konto: Passwort erzeugt Coolify (SERVICE_PASSWORD_ADMIN),
+  # Login standardmäßig admin@askmydocs.local, überschreibbar über INITIAL_ADMIN_EMAIL
   INITIAL_COMPANY_NAME: ${INITIAL_COMPANY_NAME:-AskMyDocs}
-  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
-  COMPANY_ADMIN_PASSWORD: ${COMPANY_ADMIN_PASSWORD:-}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@askmydocs.local}
+  COMPANY_ADMIN_PASSWORD: ${SERVICE_PASSWORD_ADMIN}
 
 services:
   app:

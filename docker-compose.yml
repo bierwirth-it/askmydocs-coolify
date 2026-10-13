@@ -65,10 +65,11 @@ x-app-env: &app-env
   GEMINI_API_KEY: ${GEMINI_API_KEY:-}
   REGOLO_API_KEY: ${REGOLO_API_KEY:-}
 
-  # Optional: erstes Admin-Konto beim Start anlegen (beide Werte nötig)
+  # Erstes Admin-Konto: Passwort erzeugt Coolify (SERVICE_PASSWORD_ADMIN),
+  # Login standardmäßig admin@askmydocs.local, überschreibbar über INITIAL_ADMIN_EMAIL
   INITIAL_COMPANY_NAME: ${INITIAL_COMPANY_NAME:-AskMyDocs}
-  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-}
-  COMPANY_ADMIN_PASSWORD: ${COMPANY_ADMIN_PASSWORD:-}
+  INITIAL_ADMIN_EMAIL: ${INITIAL_ADMIN_EMAIL:-admin@askmydocs.local}
+  COMPANY_ADMIN_PASSWORD: ${SERVICE_PASSWORD_ADMIN}
 
 services:
   app:

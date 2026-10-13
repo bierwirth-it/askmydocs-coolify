@@ -270,14 +270,22 @@ case "${role}" in
             as_app php artisan db:seed --class=RbacSeeder --force --no-interaction
         fi
 
-        # Optional: erste Firma + Admin-Konto anlegen (nur solange das Konto fehlt).
-        if [[ -n "${INITIAL_ADMIN_EMAIL:-}" && -n "${COMPANY_ADMIN_PASSWORD:-}" ]]; then
-            as_app php artisan company:create \
+        # Erste Firma + Admin-Konto anlegen (nur solange die Firma fehlt).
+        # E-Mail: INITIAL_ADMIN_EMAIL (Standard admin@askmydocs.local).
+        # Passwort: COMPANY_ADMIN_PASSWORD (in Coolify per Magic-Variable erzeugt).
+        admin_email="${INITIAL_ADMIN_EMAIL:-admin@askmydocs.local}"
+        if [[ -n "${COMPANY_ADMIN_PASSWORD:-}" ]]; then
+            if as_app php artisan company:create \
                 --company="${INITIAL_COMPANY_NAME:-AskMyDocs}" \
-                --email="${INITIAL_ADMIN_EMAIL}" \
+                --email="${admin_email}" \
                 --role="${INITIAL_ADMIN_ROLE:-super-admin}" \
-                --no-interaction \
-                || echo "Hinweis: company:create wurde übersprungen (Konto/Firma existiert vermutlich bereits)."
+                --no-interaction; then
+                echo "Admin-Konto angelegt: ${admin_email} (Passwort: Variable COMPANY_ADMIN_PASSWORD)"
+            else
+                echo "Hinweis: company:create übersprungen (Firma/Konto existiert bereits)."
+            fi
+        else
+            echo "Hinweis: kein Admin-Konto angelegt (COMPANY_ADMIN_PASSWORD fehlt)."
         fi
 
         exec supervisord -c /etc/supervisor/supervisord.conf

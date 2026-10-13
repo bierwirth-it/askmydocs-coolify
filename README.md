@@ -12,10 +12,10 @@ Deployment von [AskMyDocs](https://github.com/lopadova/AskMyDocs) (Self-hosted A
 
 ## Was automatisch passiert
 
-- **Passwörter und Schlüssel** erzeugt Coolify über Magic-Variablen: `SERVICE_PASSWORD_POSTGRES`, `SERVICE_PASSWORD_REDIS`, `SERVICE_REALBASE64_APPKEY` (→ `APP_KEY`).
+- **Passwörter und Schlüssel** erzeugt Coolify über Magic-Variablen: `SERVICE_PASSWORD_POSTGRES`, `SERVICE_PASSWORD_REDIS`, `SERVICE_PASSWORD_ADMIN`, `SERVICE_REALBASE64_APPKEY` (→ `APP_KEY`). Nur der API-Key des KI-Providers muss von Hand eingetragen werden, weil ihn der Provider ausstellt.
 - **URL und Domain** kommen aus `SERVICE_URL_APP` / `SERVICE_FQDN_APP` (Domain am Service `app` setzen).
 - **Migrationen und Rollen** laufen beim Start des `app`-Containers (`RUN_MIGRATIONS=true`).
-- **Erstes Admin-Konto** wird angelegt, wenn `INITIAL_ADMIN_EMAIL` und `COMPANY_ADMIN_PASSWORD` gesetzt sind.
+- **Erstes Admin-Konto** wird beim ersten Start angelegt: Passwort aus `SERVICE_PASSWORD_ADMIN` (in Coolify unter „Environment Variables“ sichtbar), Login `admin@askmydocs.local` (änderbar über `INITIAL_ADMIN_EMAIL`).
 - **Host-Zertifikate**: Das CA-Bundle des Coolify-Hosts (`/etc/ssl/certs/ca-certificates.crt`) wird per Bind-Mount in die App-Container gelegt. Interne CAs so einbinden:
 
   ```bash
@@ -45,7 +45,7 @@ Um das Template dauerhaft in der Service-Liste zu haben, die Datei auf dem Cooli
 |---|---|---|
 | `OPENROUTER_API_KEY` / `OPENAI_API_KEY` | ja (mind. einer) | KI-Provider; Standard: Chat über OpenRouter, Embeddings über OpenAI |
 | `AI_PROVIDER`, `AI_EMBEDDINGS_PROVIDER` | nein | `openai`, `anthropic`, `gemini`, `openrouter`, `regolo` |
-| `INITIAL_ADMIN_EMAIL`, `COMPANY_ADMIN_PASSWORD` | empfohlen | Erstes Admin-Konto (Passwort mind. 8 Zeichen) |
+| `INITIAL_ADMIN_EMAIL` | nein | Login des ersten Admin-Kontos (Standard `admin@askmydocs.local`); Passwort steht in `COMPANY_ADMIN_PASSWORD` |
 | `INITIAL_COMPANY_NAME` | nein | Name des ersten Mandanten |
 | `APP_TIMEZONE`, `APP_LOCALE` | nein | Standard `Europe/Berlin`, `en` |
 | `HOST_CA_BUNDLE` | nein | Pfad zum CA-Bundle des Hosts |
